@@ -1,13 +1,21 @@
 use axum::extract::{Path, Query};
 use axum::response::{Html, IntoResponse};
-use axum::routing::get;
+use axum::routing::{get, get_service};
 use axum::Router;
 use serde::Deserialize;
 use std::net::SocketAddr;
+use tower_http::services::ServeDir;
+
+pub use self::error::{Error, Result};
+mod error;
+mod web;
 
 #[tokio::main]
 async fn main() {
-    let routes_all = Router::new().merge(routes_hello());
+    let routes_all = Router::new()
+        .merge(routes_hello())
+        .merge(web::routes_login::routes())
+        .fallback_service(routes_static());
 
     let addr = SocketAddr::from(([127, 0, 0, 1], 8080));
     let listener = tokio::net::TcpListener::bind(&addr).await.unwrap();
@@ -37,5 +45,9 @@ async fn main() {
 
         // let name = name.as_str();
         Html(format!("Hello <strong>{name}</strong>"))
+    }
+
+    fn routes_static() -> Router {
+        Router::new().nest_service("/", get_service(ServeDir::new("./")))
     }
 }
