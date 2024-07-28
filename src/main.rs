@@ -1,9 +1,10 @@
 use axum::extract::{Path, Query};
-use axum::response::{Html, IntoResponse};
+use axum::response::{Html, IntoResponse, Response};
 use axum::routing::{get, get_service};
-use axum::Router;
+use axum::{middleware, Router};
 use serde::Deserialize;
 use std::net::SocketAddr;
+use tower_cookies::CookieManagerLayer;
 use tower_http::services::ServeDir;
 
 pub use self::error::{Error, Result};
@@ -15,7 +16,15 @@ async fn main() {
     let routes_all = Router::new()
         .merge(routes_hello())
         .merge(web::routes_login::routes())
+        .layer(middleware::map_response(main_response_mapper))
+        .layer(CookieManagerLayer::new())
         .fallback_service(routes_static());
+
+    async fn main_response_mapper(res: Response) -> Response {
+        println!("->> {:<12} - main_response_mapper", "RES_MAPPER");
+        println!();
+        res
+    }
 
     let addr = SocketAddr::from(([127, 0, 0, 1], 8080));
     let listener = tokio::net::TcpListener::bind(&addr).await.unwrap();
